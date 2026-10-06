@@ -67,6 +67,9 @@ export default async function Page({
             <Link href="/statistics" className="hover:text-neutral-900">
               Statistiques
             </Link>
+            <Link href="/comparaison" className="hover:text-neutral-900">
+              Comparaison
+            </Link>
             <Link href="/methodologie" className="hover:text-neutral-900">
               Méthodologie
             </Link>

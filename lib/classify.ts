@@ -27,8 +27,14 @@ export interface Classification {
  * l'établissement : « le lycée Jean Moulin à Bordeaux est fermé ». Un motif qui
  * colle les deux mot à mot ne matche jamais du texte réel.
  */
-const GAP = String.raw`(?:\s+[\p{L}\p{N}'’.\-()]+){0,6}?`;
-const ETAB = String.raw`(?:lyc[ée]e|coll[èe]ge|établissement|établissements)`;
+/**
+ * Un mot ou une suite courte : le nom de l'établissement, l'arrondissement,
+ * une date. Les virgules comptent, sinon « le lycée Montaigne, dans le 6e
+ * arrondissement, était bloqué » ne trouve jamais son verbe.
+ */
+const GAP = String.raw`(?:\s+[\p{L}\p{N}'’.,()\-]+){0,6}?`;
+/** Pluriel accepté : la presse écrit « 13 lycées fermés », pas « un lycée est fermé ». */
+const ETAB = String.raw`(?:lyc[ée]es?|coll[èe]ges?|établissements?)`;
 
 /**
  * Piège JavaScript : `\w` reste ASCII **même avec le flag `u`**. Un `\b`
@@ -39,32 +45,52 @@ const START = String.raw`(?<![\p{L}\p{N}])`;
 const END = String.raw`(?![\p{L}\p{N}])`;
 
 /**
+ * Auxiliaire + adverbe intercalés. « était de nouveau bloqué »,
+ * « a notamment été fermé » : la presse ne colle pas le participe au verbe.
+ */
+const AUX = String.raw`(?:[a-zà-öœæ]{1,}\s+){0,3}(?:est|sont|été|était|étaient|serait|seront|reste|restent|restait)\s+`;
+const ADVERBE = String.raw`(?:${GAP}\s*)?(?:de\s+nouveau\s+|d[ée]j[àa]\s+)?`;
+
+/** `${ETAB} … ${AUX} … ${PARTICIPE}` : la forme canonique de la presse. */
+const affirm = (part: string) =>
+  new RegExp(
+    String.raw`${START}${ETAB}${GAP}\s+(?:${AUX})?${ADVERBE}${part}${END}`,
+    "iu",
+  );
+
+/** `${ETAB}s? adjectif` sans verbe : « 13 lycées fermés », « plusieurs lycées perturbés ». */
+const adjectif = (part: string) =>
+  new RegExp(String.raw`${START}${ETAB}s?\s+(?:${GAP}\s*)?${part}${END}`, "iu");
+
+/**
  * Ordre = force de l'affirmation. On garde le motif le plus fort : « fermé »
  * l'emporte sur « perturbé », parce que c'est le statut le plus contraignant.
  * BLOQUE n'est retenu que si le mot l'est explicitement (§7).
  */
 export const PATTERNS: Array<{ status: EventStatus; re: RegExp }> = [
   // --- FERME
-  { status: "FERME", re: new RegExp(String.raw`${START}${ETAB}${GAP}\s+(?:est|sont|ont\s+été|reste|restera)\s+ferm[ée]e?s?${END}`, "iu") },
+  { status: "FERME", re: affirm(String.raw`ferm[ée]e?s?`) },
+  { status: "FERME", re: adjectif(String.raw`ferm[ée]e?s?`) },
+  { status: "FERME", re: new RegExp(String.raw`${START}fermeture\s+(?:de\s+(?:l[’'])?${ETAB}|des\s+lyc[ée]es)${END}`, "iu") },
   { status: "FERME", re: new RegExp(String.raw`${START}${ETAB}${GAP}\s+ferm[ée]e?s?${END}\s+par\s+(?:l[’']?administration|la\s+(?:ville|r[ée]gion|collectivit[ée]))`, "iu") },
-  { status: "FERME", re: new RegExp(String.raw`${START}fermeture\s+(?:de\s+(?:l[’'])?(?:lyc[ée]e|coll[èe]ge|établissement)|des\s+lyc[ée]es)${END}`, "iu") },
 
   // --- BLOQUE
-  { status: "BLOQUE", re: new RegExp(String.raw`${START}${ETAB}${GAP}\s+(?:est|sont|ont\s+été|reste|restent)\s+bloqu[ée]e?s?${END}`, "iu") },
-  { status: "BLOQUE", re: new RegExp(String.raw`${START}blocage\s+du\s+(?:lyc[ée]e|coll[èe]ge|établissement)${END}`, "iu") },
+  { status: "BLOQUE", re: affirm(String.raw`bloqu[ée]e?s?`) },
+  { status: "BLOQUE", re: new RegExp(String.raw`${START}blocage\s+du\s+${ETAB}${END}`, "iu") },
   { status: "BLOQUE", re: new RegExp(String.raw`${START}(?:ont|a)\s+bloqu[ée]e?s?${END}\s+(?:les\s+)?(?:acc[èe]s?|l[’']?entr[ée]e|le\s+portail)`, "iu") },
-  { status: "BLOQUE", re: new RegExp(String.raw`${START}(?:acc[èe]s?|l[’']?entr[ée]e|le\s+portail)${GAP}\s+(?:a\s+été|ont\s+été|est)\s+bloqu[ée]e?s?${END}`, "iu") },
 
   // --- PERTURBE
-  { status: "PERTURBE", re: new RegExp(String.raw`${START}${ETAB}${GAP}\s+(?:est|sont|ont\s+été|reste)\s+perturb[ée]e?s?${END}`, "iu") },
-  { status: "PERTURBE", re: new RegExp(String.raw`${START}perturbation(?:s)?${GAP}(?:dans|au|à|du|de)\s+(?:le\s+|l[’'])?(?:lyc[ée]e|coll[èe]ge|établissement)${END}`, "iu") },
+  { status: "PERTURBE", re: affirm(String.raw`perturb[ée]e?s?`) },
+  { status: "PERTURBE", re: adjectif(String.raw`perturb[ée]e?s?`) },
+  { status: "PERTURBE", re: new RegExp(String.raw`${START}perturbation(?:s)?${GAP}(?:dans|au|à|du|de)\s+(?:le\s+|l[’'])?${ETAB}${END}`, "iu") },
   { status: "PERTURBE", re: new RegExp(String.raw`${START}cours\s+(?:sont\s+|ont\s+été\s+|seront\s+)?suspendus?${END}`, "iu") },
   { status: "PERTURBE", re: new RegExp(String.raw`${START}(?:gr[èe]ve|gr[èe]vent)\s+(?:des\s+)?(?:professeurs?|enseignants?)${GAP}\s+(?:dans|au|à)\s+(?:le\s+|l[’'])?${ETAB}`, "iu") },
 
   // --- SIGNALÉ
   { status: "SIGNALE", re: new RegExp(String.raw`${START}mobilisation\s+(?:des\s+)?(?:élèves|lycéens|collégiens|lyc[ée]ens|étudiants)${END}`, "iu") },
   { status: "SIGNALE", re: new RegExp(String.raw`${START}(?:élèves|lycéens|collégiens)${GAP}\s+(?:occupent|occup[ée]rent|bloquent)${END}`, "iu") },
-  { status: "SIGNALE", re: new RegExp(String.raw`${START}(?:assembl[ée]e?|rassemblement|manifestation)${GAP}\s+(?:devant|à|au)\s+(?:le\s+|l[’'])?${ETAB}`, "iu") },
+  { status: "SIGNALE", re: new RegExp(String.raw`${START}(?:assembl[ée]es?|rassemblements?|manifestations?)${GAP}\s+(?:devant|à|au|aupr[èe]s\s+de)\s+(?:le\s+|l[’'])?${ETAB}`, "iu") },
+  { status: "SIGNALE", re: new RegExp(String.raw`${START}${ETAB}${GAP}\s+(?:a\s+${GAP}(?:été\s+)?|ont\s+${GAP}(?:été\s+)?)document[ée]s?${END}`, "iu") },
 ];
 
 /**
@@ -77,10 +103,24 @@ export const PATTERNS: Array<{ status: EventStatus; re: RegExp }> = [
  * une phrasecourante : « le lycée oméga à villetest ». Exiger une majuscule
  * fait perdre la moitié des mentions.
  */
-const NAME_WORD = String.raw`(?:[A-ZÀ-Ö][\p{L}'’-]{1,}|[a-zà-öœæ]{2,})`;
+/**
+ * Nom d'établissement = mots capitalisés accolés. Les particules en minuscules
+ * (« de », « du ») sont tolérées, pas les mots de liaison : sinon
+ * « Montaigne, dans le 6e » engloutit « dans le » et casse le rattachement.
+ * On s'arrête à la virgule : c'est le plus souvent la frontière du nom.
+ *
+ * ATTENTION : pas de flag `i` ici. Avec `i`, `[A-ZÀ-Ö]` accepte aussi les
+ * minuscules et l'extraction ramasse l'adjectif — « 13 lycées fermées »
+ * deviendrait « lycée fermées ». D'où les variantes explicites de casse.
+ */
+const NAME_WORD = String.raw`[A-ZÀ-Ö][\p{L}'’-]{1,}`;
+const PARTICULE = String.raw`(?:de|du|des|la|le|l[’])`;
+const ETAB_CASED = String.raw`(?:[Ll]yc[ée]es?|[Cc]oll[èe]ges?|[ÉEe]tablissements?)`;
+/** Quelques mots en minuscules tolérés avant le nom : « lycée fictif Alpha ». */
+const LOW = String.raw`(?:[a-zà-öœæ'’-]{2,}\s+){0,3}`;
 const SCHOOL_MENTION = new RegExp(
-  String.raw`${START}(?:lyc[ée]e|coll[èe]ge|établissement)\s+((?:${NAME_WORD})(?:\s+(?:${NAME_WORD}|de|du|des|la|le|l[’'])){0,5})`,
-  "iu",
+  String.raw`${START}${ETAB_CASED}\s+${LOW}(${NAME_WORD}(?:(?:[\s-]+${NAME_WORD})|(?:[\s-]+${PARTICULE})){0,4})`,
+  "u",
 );
 
 export interface Extraction extends Classification {

@@ -118,6 +118,26 @@ CREATE TABLE IF NOT EXISTS status_history (
 
 CREATE INDEX IF NOT EXISTS idx_history_school ON status_history(school_id, changed_at);
 
+-- --------------------------------------------------- chiffres externes
+-- Les décomptes publiés par d'autres acteurs. On les ENREGISTRE avec leur
+-- définition, jamais on ne les fusionne avec le nôtre : les méthodes
+-- diffèrent, la comparaison n'a de sens que si le périmètre est explicite
+-- (PRD §17).
+CREATE TABLE IF NOT EXISTS external_counts (
+  id            INTEGER PRIMARY KEY,
+  publisher     TEXT NOT NULL,
+  figure        INTEGER,
+  figure_text   TEXT NOT NULL,     -- tel que publié, y compris les "~" et "plus de"
+  definition    TEXT NOT NULL,     -- ce que l'acteur compte exactement
+  scope         TEXT NOT NULL,     -- périmètre géographique
+  reference_date TEXT NOT NULL,    -- date à laquelle le compte vaut
+  source_url    TEXT,
+  source_id     INTEGER REFERENCES sources(id),
+  created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_extcounts_date ON external_counts(reference_date);
+
 -- ------------------------------------------------ signalements non rattachés
 -- Une source parle d'un établissement, mais le rattachement à un UAI échoue
 -- (ambiguïté, correspondance trop faible, aucun nom). Le signalement n'est

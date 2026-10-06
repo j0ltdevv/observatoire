@@ -105,7 +105,9 @@ test("§34 — jamais de création automatique d'établissement", () => {
   for (const input of noms) {
     const r = matchSchool(input);
     assert.ok(r.uai === null || /^\d{7}[A-Z]$/.test(r.uai), "UAI invérifiable");
-    if (r.uai === null) assert.match(r.reason, /Aucun|ambigu|validation|obligatoire/i);
+    if (r.uai === null) {
+      assert.match(r.reason, /Aucun|ambigu|validation|obligatoire|vérification/i);
+    }
   }
 });
 

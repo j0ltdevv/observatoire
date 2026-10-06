@@ -158,18 +158,23 @@ export function matchSchool(input: {
 
   const cityNorm = city ? normalize(city) : null;
 
-  // 2-3. Candidats par ville d'abord, puis sans contrainte de ville.
+  /**
+   * Le dataset officiel range les établissements parisiens sous
+   * « Paris 6e arrondissement », pas « Paris ». Une égalité stricte sur la
+   * commune perdrait les 468 lycées franciliens : on matche donc le préfixe.
+   */
   const sql = cityNorm
     ? `SELECT uai, name, city, department_name, school_type, latitude, longitude
          FROM schools
-        WHERE scope = 'FR_METRO' AND norm_city = @city
+        WHERE scope = 'FR_METRO'
+          AND (norm_city = @city OR norm_city LIKE @cityPrefix)
         ORDER BY name`
     : `SELECT uai, name, city, department_name, school_type, latitude, longitude
          FROM schools
         WHERE scope = 'FR_METRO'
         ORDER BY name`;
 
-  const params: Params = cityNorm ? { city: cityNorm } : {};
+  const params: Params = cityNorm ? { city: cityNorm, cityPrefix: `${cityNorm} %` } : {};
   const pool = fetchRows(sql, params);
 
   // Sans ville, on ne peut pas faire de matching automatique : trop de

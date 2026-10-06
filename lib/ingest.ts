@@ -26,6 +26,12 @@ export interface Candidate {
   retrieved_at?: string;
   /** Corps de texte ou extrait. */
   text: string;
+  /**
+   * Date à laquelle l'ÉVÉNEMENT s'applique, si elle diffère de la publication.
+   * Un article du 5 octobre peut rapporter une fermeture du 2 : confondre les
+   * deux ferait vieillir la donnée de trois jours (PRD §28).
+   */
+  event_date?: string | null;
   /** URL de la source originale si celle-ci est une reprise (§26). */
   origin_url?: string | null;
 }
@@ -176,7 +182,7 @@ export function ingestCandidate(c: Candidate): IngestOutcome {
           `Classification automatisée (niveau D) : motif « ${extraction.matched} ». ` +
           `Rattachement ${match.kind}. En attente de validation humaine.`,
         detected_at: nowIso(),
-        event_date: c.published_at ?? nowIso(),
+        event_date: c.event_date ?? c.published_at ?? nowIso(),
         created_by: "pipeline",
       });
     const eventId = Number(info.lastInsertRowid);
