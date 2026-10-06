@@ -133,16 +133,24 @@ export function byExplicitUai(text: string): MatchResult | null {
 }
 
 /**
- * Recherche principale. La normalisation se fait à l'import (colonnes
- * `norm_name` / `norm_city`) : SQLite n'a pas d'`unaccent`, on ne peut pas
- * produire une forme sans accents en SQL.
+ * Filtre par ordre d'enseignement. C'est LA garde qui empêche un lycée de
+ * tomber sur une école élémentaire de la même rue : sans elle,
+ * « lycée Chaptal » matche « E.P.PU CHAPTAL P 12 rue Chaptal », et le
+ * registre affiche une école primaire fermée.
  */
+const TYPE_CLAUSE: Record<string, string> = {
+  lycee: `school_type LIKE 'LYCEE%' AND school_type NOT LIKE 'SECTION%'`,
+  college: `school_type = 'COLLEGE'`,
+};
+
 export function matchSchool(input: {
   name?: string;
   city?: string;
   department?: string;
   uai?: string;
   text?: string;
+  /** « lycée » ou « collège », tel que la source l'écrit. */
+  etab_kind?: "lycee" | "college" | null;
 }): MatchResult {
   // 1. UAI explicite dans le texte fourni.
   const haystack = `${input.uai ?? ""} ${input.text ?? ""} ${input.name ?? ""}`;
@@ -163,15 +171,19 @@ export function matchSchool(input: {
    * « Paris 6e arrondissement », pas « Paris ». Une égalité stricte sur la
    * commune perdrait les 468 lycées franciliens : on matche donc le préfixe.
    */
+  const typeClause = input.etab_kind ? TYPE_CLAUSE[input.etab_kind] : "";
+
   const sql = cityNorm
     ? `SELECT uai, name, city, department_name, school_type, latitude, longitude
          FROM schools
         WHERE scope = 'FR_METRO'
           AND (norm_city = @city OR norm_city LIKE @cityPrefix)
+          ${typeClause ? `AND ${typeClause}` : ""}
         ORDER BY name`
     : `SELECT uai, name, city, department_name, school_type, latitude, longitude
          FROM schools
         WHERE scope = 'FR_METRO'
+        ${typeClause ? `AND ${typeClause}` : ""}
         ORDER BY name`;
 
   const params: Params = cityNorm ? { city: cityNorm, cityPrefix: `${cityNorm} %` } : {};

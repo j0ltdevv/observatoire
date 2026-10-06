@@ -108,11 +108,17 @@ test("ingestion : même URL = doublon, pas de deuxième source", () => {
 
 test("ingestion : 15 reprises du même communiqué = 1 seule source (§26)", () => {
   const original = "Le lycée fictif Alpha à Villetest est bloqué depuis ce matin.";
-  const reformate = "le lycée fictif alpha à villetest est bloqué depuis ce matin !";
+  // Reprise typique : mêmes mots, ponctuation et guillemets différents.
+  const reformate = "« Le lycée fictif Alpha à Villetest est bloqué depuis ce matin ; »";
+
+  // La clé de fait est ce que le pipeline extrait du texte. On ne la fige pas
+  // en dur : le test doit suivre le comportement, pas une constante interne.
+  const factKey = classify(original).school_name ?? "";
+  assert.ok(factKey, "un nom d'établissement doit être extrait");
 
   assert.equal(
-    contentHash(original),
-    contentHash(reformate),
+    contentHash(original, factKey),
+    contentHash(reformate, factKey),
     "la mise en forme ne doit pas créer une source nouvelle",
   );
 
@@ -132,7 +138,7 @@ test("ingestion : 15 reprises du même communiqué = 1 seule source (§26)", () 
   const n = get<{ n: number }>(
     db,
     "SELECT COUNT(*) n FROM sources WHERE content_hash = @h",
-    { h: contentHash(original) },
+    { h: contentHash(original, factKey) },
   );
   assert.equal(Number(n?.n ?? 0), 1, "une seule source pour quinze reprises");
 });
@@ -162,6 +168,53 @@ test("ingestion : texte sans statut → source conservée, aucun événement", (
   );
   assert.equal(out.kind, "skipped");
   assert.ok(out.source_id !== null, "la source est quand même archivée");
+});
+
+test("une phrase qui recense plusieurs lycées donne plusieurs faits, pas des doublons", () => {
+  // La préfecture de police recense 13 lycées fermés dans UNE phrase. C'est
+  // treize faits distincts : la déduplication ne doit pas en garder un seul.
+  const phrase =
+    "Vendredi 2 octobre, la préfecture de police recensait 13 lycées fermés à Paris : " +
+    "Alpha, Beta et Gamma.";
+  const etabs = ["Lycée fictif Alpha", "Lycée fictif Beta", "Lycée fictif Gamma"];
+
+  const db = getDb();
+  // Trois établissements de fixture supplémentaires dans la ville du test.
+  const ins = db.prepare(
+    `INSERT INTO schools
+       (uai, name, school_type, sector, city, department_code, department_name,
+        region_code, region_name, academy_code, academy_name, latitude, longitude,
+        norm_name, norm_city, norm_department, scope, source_dataset)
+     VALUES (@uai, @name, 'LYCEE ENSEIGNT GENERAL ET TECHNOLOGIQUE', 'Public',
+             'Villetest', '099', 'Fixture', '00', 'Fixture', '99', 'Fixture',
+             48.85, 2.35, @norm_name, 'villetest', 'fixture', 'FR_METRO', 'fixture')`,
+  );
+  ins.run({ uai: "0990003C", name: "Lycée fictif Gamma", norm_name: "lycee fictif gamma" });
+
+  const kinds: string[] = [];
+  for (const [i, e] of etabs.entries()) {
+    const out = ingestCandidate(
+      candidat({
+        url: `https://exemple.test/pp-liste#${i}`,
+        text: phrase,
+        school_name: e,
+        city: "Villetest",
+      }),
+    );
+    kinds.push(out.kind);
+  }
+
+  assert.deepEqual(
+    kinds,
+    ["queued", "queued", "queued"],
+    `trois faits distincts attendus, obtenu ${kinds.join(", ")}`,
+  );
+
+  const n = get<{ n: number }>(
+    db,
+    "SELECT COUNT(*) n FROM sources WHERE url LIKE 'https://exemple.test/pp-liste%'",
+  );
+  assert.equal(Number(n?.n ?? 0), 3, "trois sources, une par établissement cité");
 });
 
 test("validation : une fois accepté, le statut devient visible et daté", () => {
@@ -199,6 +252,22 @@ test("validation : une fois accepté, le statut devient visible et daté", () =>
     { school: ev?.school_id },
   );
   assert.equal(Number(h?.n ?? 0), 1, "l'historique est conservé");
+});
+
+test("§4.5 — une base sans événement n'affiche AUCUNE_INFO, jamais NORMAL", () => {
+  const db = getDb();
+  const n = get<{ n: number }>(db, "SELECT COUNT(*) n FROM school_current WHERE status <> 'AUCUNE_INFO'");
+  // À ce stade du fichier, seuls les événements de ces tests existent : tout
+  // autre établissement est « sans information », jamais « normal ».
+  assert.ok(Number(n?.n ?? 0) <= 3, `établissements avec statut : ${n?.n}`);
+  assert.equal(
+    get<{ n: number }>(
+      db,
+      "SELECT COUNT(*) n FROM school_current WHERE status = 'NORMAL'",
+    )?.n,
+    0,
+    "le statut NORMAL ne doit jamais exister",
+  );
 });
 
 test("§16 — les totaux par statut somment au total des établissements", () => {

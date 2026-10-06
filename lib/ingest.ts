@@ -32,6 +32,17 @@ export interface Candidate {
    * deux ferait vieillir la donnée de trois jours (PRD §28).
    */
   event_date?: string | null;
+  /**
+   * Établissement visé, quand une seule phrase en cite plusieurs.
+   * `text` reste la phrase VERBATIM (c'est elle qui est affichée comme fait) ;
+   * ce champ ne sert qu'à cibler le rattachement. Écrire ici une
+   * reformulation du texte reviendrait à inventer une source.
+   */
+  school_name?: string | null;
+  /** Commune, même remarque : sert au rattachement, pas à l'affichage. */
+  city?: string | null;
+  /** « lycée » ou « collège ». Sans ce filtre, un lycée peut tomber sur une école. */
+  etab_kind?: "lycee" | "college" | null;
   /** URL de la source originale si celle-ci est une reprise (§26). */
   origin_url?: string | null;
 }
@@ -52,11 +63,28 @@ const hash = (s: string): string => {
   return h.toString(16).padStart(8, "0");
 };
 
-/** Hash du contenu utile, insensible à la mise en forme. */
-export const contentHash = (text: string): string =>
-  hash(text.toLowerCase().replace(/\s+/g, " ").replace(/[^a-z0-9 ]/g, "").trim());
+/**
+ * Hash du contenu utile, insensible à la mise en forme.
+ *
+ * `factKey` entre dans le hash : c'est l'établissement visé. Une seule phrase
+ * qui recense treize lycée fermés contient treize faits distincts — sans cette
+ * clé, la déduplication §26 les confondrait et jetterait les douze derniers.
+ * À l'inverse, quinze sites reprenant le même communiqué sur le même
+ * établissement restent un seul fait.
+ */
+export const contentHash = (text: string, factKey = ""): string =>
+  hash(
+    `${text.toLowerCase().replace(/\s+/g, " ").replace(/[^a-z0-9 ]/g, "").trim()}#${factKey
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z0-9]/g, "")}`,
+  );
 
-export function upsertSource(c: Candidate): { id: number; duplicate: boolean; reason: string } {
+export function upsertSource(
+  c: Candidate,
+  factKey = "",
+): { id: number; duplicate: boolean; reason: string } {
   const db = getDb();
   const existing = get<{ id: number }>(
     db,
@@ -67,7 +95,7 @@ export function upsertSource(c: Candidate): { id: number; duplicate: boolean; re
     return { id: existing.id, duplicate: true, reason: "URL déjà enregistrée" };
   }
 
-  const ch = contentHash(c.text);
+  const ch = contentHash(c.text, factKey);
   const sameContent = get<{ id: number; url: string }>(
     db,
     "SELECT id, url FROM sources WHERE content_hash = @h LIMIT 1",
@@ -106,11 +134,13 @@ export function upsertSource(c: Candidate): { id: number; duplicate: boolean; re
 export function ingestCandidate(c: Candidate): IngestOutcome {
   const db = getDb();
   const extraction = classify(c.text);
+  /** Cible du rattachement : sert aussi de clé de déduplication. */
+  const factKey = c.school_name ?? extraction.school_name ?? "";
 
   // Pas de statut reconnu : la source est bien enregistrée, mais elle ne dit
   // rien d'exploitable sur un établissement. Ce n'est pas une erreur.
   if (!extraction.status) {
-    const src = upsertSource(c);
+    const src = upsertSource(c, factKey);
     return {
       kind: "skipped",
       source_id: src.id,
@@ -118,17 +148,20 @@ export function ingestCandidate(c: Candidate): IngestOutcome {
     };
   }
 
-  const src = upsertSource(c);
+  const src = upsertSource(c, factKey);
   if (src.duplicate) {
     return { kind: "duplicate", source_id: src.id, reason: src.reason };
   }
 
   // Rattachement : UAI explicite d'abord, puis nom + ville.
+  // Un `school_name` explicite l'emporte sur l'extraction automatique : quand
+  // une phrase cite treize lycées, l'extracteur ne peut pas deviner lequel.
   const match = matchSchool({
     text: c.text,
     uai: extraction.uai ?? undefined,
-    name: extraction.school_name ?? undefined,
-    city: extractCity(c.text),
+    name: c.school_name ?? extraction.school_name ?? undefined,
+    city: c.city ?? extractCity(c.text),
+    etab_kind: c.etab_kind ?? extraction.etab_kind,
   });
 
   const fact = factSentence(c.text);

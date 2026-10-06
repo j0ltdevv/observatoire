@@ -85,10 +85,16 @@ test("§16 — la somme des statuts égale le total : rien ne disparaît", () =>
   assert.equal(somme, s.total_schools, `somme ${somme} ≠ total ${s.total_schools}`);
 });
 
-test("§4.5 — une base vide donne AUCUNE_INFO partout, jamais 0 'mobilisés'", () => {
+test("§4.5 — aucune_info est le complément exact des statuts comptés", () => {
+  // Le cas « base entièrement vide » est traité dans tests/ingest.test.ts, sur
+  // une base jetable. Ici on vérifie l'invariant permanent : les deux moitiés
+  // se complètent, aucune ligne ne tombe entre les deux.
   const s = getStats({});
-  assert.equal(s.aucune_info, s.total_schools);
-  assert.equal(s.with_signalement, 0);
+  assert.equal(
+    s.aucune_info + s.with_signalement,
+    s.total_schools,
+    "chaque établissement est soit compté, soit « aucune information »",
+  );
 });
 
 test("statistiques par région : la somme des totaux égale le total national", () => {

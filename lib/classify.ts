@@ -128,6 +128,12 @@ export interface Extraction extends Classification {
   school_name: string | null;
   /** UAI cité explicitement. */
   uai: string | null;
+  /**
+   * Quel mot a servi : « lycée » ou « collège ». Indispensable au
+   * rattachement : sans ce filtre, « lycée Chaptal » peut tomber sur
+   * « E.P.PU Chaptal », une école élémentaire de la même rue.
+   */
+  etab_kind: "lycee" | "college" | null;
 }
 
 export function classify(text: string): Extraction {
@@ -175,6 +181,11 @@ export function classify(text: string): Extraction {
     confidence: "D",
     school_name: schoolName,
     uai,
+    etab_kind: withoutUai.match(/[Cc]oll[èe]ge/)
+      ? "college"
+      : withoutUai.match(/[Ll]yc[ée]e/)
+        ? "lycee"
+        : null,
     notes,
   };
 }
