@@ -118,6 +118,37 @@ CREATE TABLE IF NOT EXISTS status_history (
 
 CREATE INDEX IF NOT EXISTS idx_history_school ON status_history(school_id, changed_at);
 
+-- ------------------------------------------------- mesures institutionnelles
+-- Un arrêté préfectoral interdisant les rassemblements devant un établissement
+-- est un acte public, daté et nominatif — mais CE N'EST PAS UNE FERMETURE.
+-- Le dériver en FERME serait exactement l'interprétation interdite par le PRD
+-- §4.4. On enregistre donc la mesure séparément, avec les établissements
+-- qu'elle nomme, et on la croise avec le registre sans jamais en déduire un
+-- statut.
+CREATE TABLE IF NOT EXISTS institutional_measures (
+  id            INTEGER PRIMARY KEY,
+  source_id     INTEGER NOT NULL REFERENCES sources(id) ON DELETE CASCADE,
+  authority     TEXT NOT NULL,      -- Préfecture de Paris, de la Seine-Saint-Denis…
+  measure_type  TEXT NOT NULL,      -- INTERDICTION_RASSEMBLEMENT, FERMETURE…
+  scope         TEXT NOT NULL,
+  reference_date TEXT NOT NULL,
+  announced_count INTEGER,           -- le nombre ÉNONCÉ par la source, tel quel
+  created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
+);
+
+CREATE TABLE IF NOT EXISTS measure_entries (
+  id            INTEGER PRIMARY KEY,
+  measure_id    INTEGER NOT NULL REFERENCES institutional_measures(id) ON DELETE CASCADE,
+  raw_name      TEXT NOT NULL,      -- nom tel que la source l'écrit
+  city          TEXT,
+  arrondissement TEXT,
+  school_id     INTEGER REFERENCES schools(id),  -- NULL si non rattaché
+  match_reason  TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_measures_date   ON institutional_measures(reference_date);
+CREATE INDEX IF NOT EXISTS idx_measure_entries ON measure_entries(measure_id);
+
 -- --------------------------------------------------- chiffres externes
 -- Les décomptes publiés par d'autres acteurs. On les ENREGISTRE avec leur
 -- définition, jamais on ne les fusionne avec le nôtre : les méthodes

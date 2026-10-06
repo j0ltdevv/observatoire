@@ -20,7 +20,7 @@ npm run dev                      # http://localhost:3000
 Tests :
 
 ```bash
-node --test tests/       # 93 tests
+node --test tests/       # 102 tests
 npx tsc --noEmit        # types
 npm run build           # build de production
 ```
@@ -42,7 +42,9 @@ npm run build           # build de production
 | Validation par lot | `scripts/accept-batch.ts "<justification>" "<vérificateur>"` |
 | Comparaison des décomptes | 17 chiffres externes + évolution par jour |
 | API publique + exports | CSV, GeoJSON, JSON — 19 colonnes figées |
-| Sources réelles branchées | Sortiraparis (préfecture de police), Le Monde/AFP, Wikipédia |
+| Sources réelles branchées | Sortiraparis (préfecture de police), Le Monde/AFP, Wikipédia, France 3 (arrêtés) |
+| Mesures institutionnelles | arrêté du 05/10 : 105 nommés, 84 rattachés, 8 documentés |
+| Comparaison des décomptes | 17 chiffres externes + évolution par jour |
 
 ## API publique
 
@@ -80,7 +82,11 @@ Les tests `tests/` existent pour prevent ces règles de régresser.
    et reste consultable.
 6. **Aucune contradiction n'est résolue d'autorité** (§27) : le statut devient
    `CONTRADICTOIRE` et les deux versions sont affichées.
-7. **Les totaux somment** : `tests/queries.test.ts` vérifie que la somme des
+7. **Une interdiction de rassemblement n'est pas une fermeture.** Les arrêtés
+   préfectoraux sont stockés dans `institutional_measures`, pas dans
+   `mobilization_events`, et le croisement affiche ce que le registre ignore
+   (`tests/measures.test.ts`, §4.4).
+8. **Les totaux somment** : `tests/queries.test.ts` vérifie que la somme des
    statuts égale le total des établissements, par région et par département.
 
 ## Collecte

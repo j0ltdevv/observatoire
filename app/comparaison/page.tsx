@@ -9,10 +9,114 @@
 
 import Link from "next/link";
 import { listExternalCounts, ourOwnCount, type ExternalCountRow } from "@/lib/external-counts";
+import { crossCheck, listMeasures, MEASURE_LABELS } from "@/lib/measures";
 
 export const dynamic = "force-dynamic";
 
 const fr = (v: string | null): string => (v ? v.slice(0, 10) : "date inconnue");
+
+/**
+ * Croisement entre un acte institutionnel et le registre.
+ *
+ * C'est la section la plus importante de la page. Elle dit, noir sur blanc :
+ * « la préfecture nomme 105 établissements, notre registre en documente 8 ».
+ * Les 97 autres ne sont pas « sans mobilisation », ils sont sans information.
+ */
+function SectionMesures() {
+  const mesures = listMeasures();
+  if (mesures.length === 0) return null;
+
+  return (
+    <>
+      {mesures.map((m) => {
+        const x = crossCheck(m.id);
+        return (
+          <section key={m.id} className="mt-8 rounded-lg border border-neutral-300 p-4">
+            <h2 className="text-sm font-semibold text-neutral-900">
+              {MEASURE_LABELS[m.measure_type]} — {fr(m.reference_date)}
+            </h2>
+            <p className="mt-1 text-xs text-neutral-600">
+              {m.authority} · {m.scope}
+            </p>
+
+            <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <Cell k="Annoncé par la source" v={m.announced_count} />
+              <Cell k="Nommés dans la liste" v={x.entries_total} />
+              <Cell k="Rattachés à un UAI" v={x.entries_matched} />
+              <Cell k="Documentés au registre" v={x.entries_with_event} strong />
+            </dl>
+
+            <p className="mt-3 rounded bg-amber-50 p-3 text-xs leading-relaxed text-amber-950">
+              <strong>Un arrêté d&apos;interdiction de rassemblement n&apos;est pas une
+              fermeture.</strong> Aucun statut n&apos;a été déduit de cet acte : le
+              deriving « fermé » depuis « rassemblement interdit » serait inventer un
+              fait que la source n&apos;a pas écrit (PRD §4.4). L&apos;acte est
+              enregistré comme <em>mesure</em>, à part.
+            </p>
+
+            {x.entries_without_event > 0 && (
+              <p className="mt-2 text-xs leading-relaxed text-neutral-700">
+                <strong>{x.entries_without_event}</strong> établissements nommés par
+                l&apos;acté n&apos;ont <em>aucune information</em> dans le registre.
+                Cela ne signifie pas qu&apos;ils n&apos;étaient pas concernés : cela
+                signifie qu&apos;aucune source n&apos;a été trouvée pour eux, ou
+                qu&apos;aucune n&apos;a pu être rattachée à leur UAI de façon
+                vérifiable.
+              </p>
+            )}
+
+            {x.sans_info.length > 0 && (
+              <details className="mt-3">
+                <summary className="cursor-pointer text-xs font-medium text-neutral-800">
+                  Voir les {x.sans_info.length} établissements sans information
+                </summary>
+                <ul className="mt-2 grid gap-x-4 gap-y-0.5 text-[11px] text-neutral-600 sm:grid-cols-2">
+                  {x.sans_info.slice(0, 60).map((s) => (
+                    <li key={s.uai}>
+                      <Link
+                        href={`/schools/${s.uai}`}
+                        className="font-mono hover:underline"
+                      >
+                        {s.uai}
+                      </Link>{" "}
+                      — {s.name}, {s.city}
+                    </li>
+                  ))}
+                </ul>
+                {x.sans_info.length > 60 && (
+                  <p className="mt-2 text-[11px] text-neutral-500">
+                    60 affichés sur {x.sans_info.length}. Le CSV complet est exportable.
+                  </p>
+                )}
+              </details>
+            )}
+          </section>
+        );
+      })}
+    </>
+  );
+}
+
+function Cell({
+  k,
+  v,
+  strong,
+}: {
+  k: string;
+  v: number | null;
+  strong?: boolean;
+}) {
+  return (
+    <div>
+      <dt className="text-[10px] uppercase tracking-wide text-neutral-400">{k}</dt>
+      <dd
+        className={`text-lg tabular-nums ${strong ? "font-semibold text-neutral-900" : "text-neutral-700"}`}
+      >
+        {v === null ? "—" : v.toLocaleString("fr-FR")}
+      </dd>
+    </div>
+  );
+}
 
 /**
  * Évolution par date : c'est la seule lecture qui veut dire quelque chose.
@@ -85,6 +189,8 @@ export default function ComparaisonPage() {
         le droit de désigner un « vrai chiffre » — il affiche ce que chaque
         acteur a compté, et sur quelle base.
       </p>
+
+      <SectionMesures />
 
       <SectionEvolution counts={counts} />
 
