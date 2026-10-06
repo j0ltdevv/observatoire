@@ -20,7 +20,7 @@ npm run dev                      # http://localhost:3000
 Tests :
 
 ```bash
-node --test tests/       # 66 tests
+node --test tests/       # 93 tests
 npx tsc --noEmit        # types
 npm run build           # build de production
 ```
@@ -39,6 +39,27 @@ npm run build           # build de production
 | Classification déterministe | 14 motifs FR, sans LLM |
 | Pipeline d'ingestion | source → classification → rattachement → file de review |
 | Dashboard de validation | accepter / rejeter / rattacher manuellement |
+| Validation par lot | `scripts/accept-batch.ts "<justification>" "<vérificateur>"` |
+| Comparaison des décomptes | 17 chiffres externes + évolution par jour |
+| API publique + exports | CSV, GeoJSON, JSON — 19 colonnes figées |
+| Sources réelles branchées | Sortiraparis (préfecture de police), Le Monde/AFP, Wikipédia |
+
+## API publique
+
+Toutes les réponses portent `genere_le`, `perimetre` et `filtres`. Aucun chiffre
+n'est renvoyé sans son périmètre.
+
+```
+GET /api/v1/stats                                  chiffres nationaux filtrables
+GET /api/v1/schools?search=&region=&department=&limit=&offset=
+GET /api/v1/export/mobilizations.csv               19 colonnes figées, « ; » + BOM
+GET /api/v1/export/mobilizations.geojson          FeatureCollection de points
+GET /api/v1/export/comparaison.csv                 décomptes externes + définitions
+```
+
+Les colonnes du CSV sont **figées** : une colonne renommée casse les traitements
+des journalistes qui ont déjà récupéré le fichier. Les retours à la ligne sont
+aplatis, parce que certains tableurs cassent sur les champs multi-lignes.
 
 ## Règles que le code encode
 
@@ -112,8 +133,12 @@ L'identifiant d'un établissement est son **UAI**, jamais son nom.
 
 ## Limites connues
 
-- Aucune collecte automatisée n'est branchée : le registre est vide tant que
-  personne ne saisit. C'est le comportement correct, pas un bug.
+- **La collecte reste semi-automatique.** Les candidats viennent d'un outil de
+  recherche, les faits sont vérifiés à la main, la validation humaine est
+  obligatoire. C'est le choix assumé du PRD §14.
+- **Aucun établissement n'atteint CONFIRME** : il faut deux sources indépendantes
+  dont une institutionnelle, et aucune source institutionnelle nominative
+  n'est encore branchée. Tout est en confiance C.
 - Le clustering se fait par maille écran : au zoom le plus serré, 20 000
   points maximum sont chargés.
 - La base est un fichier SQLite. Le passage à Postgres/Supabase ne touche que

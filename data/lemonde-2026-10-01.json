@@ -1,0 +1,26 @@
+[
+  {
+    "url": "https://www.lemonde.fr/societe/article/2026/10/01/blocage-des-lycees-le-hall-d-un-etablissement-detruit-par-un-incendie-a-nantes-des-campus-universitaires-rejoignent-la-contestation-sociale_6786486_3224.html",
+    "title": "Le hall du lycée Nelson-Mandela détruit par un incendie lors du blocage",
+    "publisher": "Le Monde",
+    "source_type": "national_media",
+    "published_at": "2026-10-01T00:00:00Z",
+    "event_date": "2026-10-01T00:00:00Z",
+    "text": "Le hall du lycée Nelson-Mandela, dans le centre de Nantes (Loire-Atlantique), a été détruit par un incendie, dans la matinée, lors du blocage de l'établissement, a constaté une journaliste de l'Agence France-Presse (AFP).",
+    "school_name": "Nelson-Mandela",
+    "city": "Nantes",
+    "etab_kind": "lycee"
+  },
+  {
+    "url": "https://www.lemonde.fr/societe/article/2026/10/01/de-lille-a-marseille-en-passant-par-la-banlieue-parisienne-le-mouvement-lyceen-s-etend-et-se-fait-parfois-deborder_6786591_3224.html",
+    "title": "Le mouvement parti du lycée Saint-Exupéry de Créteil s'est étendu en dix jours",
+    "publisher": "Le Monde",
+    "source_type": "national_media",
+    "published_at": "2026-10-01T00:00:00Z",
+    "event_date": "2026-09-21T00:00:00Z",
+    "text": "Parti du lycée Saint-Exupéry de Créteil (Val-de-Marne) il y a à peine dix jours, il s'est étendu en un rien de temps, avec une intensité rare.",
+    "school_name": "Saint-Exupéry",
+    "city": "Créteil",
+    "etab_kind": "lycee"
+  }
+]
