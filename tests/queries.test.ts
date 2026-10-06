@@ -79,8 +79,10 @@ test("fiche établissement : UAI inconnu = null, pas d'exception", () => {
 
 test("§16 — la somme des statuts égale le total : rien ne disparaît", () => {
   const s = getStats({});
+  // Tous lesuckets doivent être énumérés. Un nouveau statut ajouté à GlobalStats
+  // sans être listé ici ferait échouer ce test : c'est le but.
   const somme =
-    s.confirmes + s.fermes + s.perturbes + s.bloques +
+    s.confirmes + s.signales + s.fermes + s.perturbes + s.bloques +
     s.contradictoires + s.expires + s.aucune_info;
   assert.equal(somme, s.total_schools, `somme ${somme} ≠ total ${s.total_schools}`);
 });

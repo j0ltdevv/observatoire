@@ -76,7 +76,8 @@ export const PATTERNS: Array<{ status: EventStatus; re: RegExp }> = [
 
   // --- BLOQUE
   { status: "BLOQUE", re: affirm(String.raw`bloqu[ée]e?s?`) },
-  { status: "BLOQUE", re: new RegExp(String.raw`${START}blocage\s+du\s+${ETAB}${END}`, "iu") },
+  // « blocage », « blocus », « blocages » : trois formes, la presse hésite.
+  { status: "BLOQUE", re: new RegExp(String.raw`${START}(?:blocage|blocus|blocages)\s+(?:du|de|dans\s+le|au|pr[èe]s\s+du|pr[èe]s\s+de)\s+(?:le\s+|l[’'])?${ETAB}`, "iu") },
   { status: "BLOQUE", re: new RegExp(String.raw`${START}(?:ont|a)\s+bloqu[ée]e?s?${END}\s+(?:les\s+)?(?:acc[èe]s?|l[’']?entr[ée]e|le\s+portail)`, "iu") },
 
   // --- PERTURBE
@@ -90,6 +91,11 @@ export const PATTERNS: Array<{ status: EventStatus; re: RegExp }> = [
   { status: "SIGNALE", re: new RegExp(String.raw`${START}mobilisation\s+(?:des\s+)?(?:élèves|lycéens|collégiens|lyc[ée]ens|étudiants)${END}`, "iu") },
   { status: "SIGNALE", re: new RegExp(String.raw`${START}(?:élèves|lycéens|collégiens)${GAP}\s+(?:occupent|occup[ée]rent|bloquent)${END}`, "iu") },
   { status: "SIGNALE", re: new RegExp(String.raw`${START}(?:assembl[ée]es?|rassemblements?|manifestations?)${GAP}\s+(?:devant|à|au|aupr[èe]s\s+de)\s+(?:le\s+|l[’'])?${ETAB}`, "iu") },
+  // « des lycéens rassemblés près du lycée Marie-de-Champagne » : le mot
+  // « rassemblement » est au participe passé et le lieu vient après. Le `\s*`
+  // est indispensable : sans lui, le GAP avale « rassemblés » et mange le
+  // participe qu'il devait chercher.
+  { status: "SIGNALE", re: new RegExp(String.raw`${START}(?:élèves|lycéens|collégiens|étudiants)${GAP}\s*(?:sont\s+|se\s+|ont\s+été\s+)?rassembl[ée]s?${GAP}\s+(?:devant|à|au|pr[èe]s\s+(?:du|de|le\s+lyc[ée]e)|aux\s+abords\s+de|aupr[èe]s\s+de)\s+(?:le\s+|l[’'])?${ETAB}`, "iu") },
   { status: "SIGNALE", re: new RegExp(String.raw`${START}${ETAB}${GAP}\s+(?:a\s+${GAP}(?:été\s+)?|ont\s+${GAP}(?:été\s+)?)document[ée]s?${END}`, "iu") },
 ];
 

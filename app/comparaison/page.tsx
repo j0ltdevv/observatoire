@@ -8,11 +8,62 @@
  */
 
 import Link from "next/link";
-import { listExternalCounts, ourOwnCount } from "@/lib/external-counts";
+import { listExternalCounts, ourOwnCount, type ExternalCountRow } from "@/lib/external-counts";
 
 export const dynamic = "force-dynamic";
 
 const fr = (v: string | null): string => (v ? v.slice(0, 10) : "date inconnue");
+
+/**
+ * Évolution par date : c'est la seule lecture qui veut dire quelque chose.
+ * Un total isolé ne dit pas s'il remplace un plus grand ou un plus petit.
+ */
+function SectionEvolution({ counts }: { counts: ExternalCountRow[] }) {
+  const dates = [...new Set(counts.map((c) => c.reference_date))].sort();
+  const valeurs = counts
+    .map((c) => c.figure)
+    .filter((v): v is number => v !== null && v > 0);
+  const max = Math.max(1, ...valeurs);
+
+  return (
+    <section className="mt-6">
+      <h2 className="text-sm font-semibold text-neutral-900">Évolution par jour</h2>
+      <p className="mt-1 text-xs text-neutral-600">
+        Plusieurs décomptes pour une même date : ils ne se cumulent pas, ils se
+        contestent. Deux méthodes le même jour donnent deux chiffres, et c&apos;est
+        l&apos;information.
+      </p>
+      <ul className="mt-3 space-y-2">
+        {dates.map((d) => {
+          const du = counts.filter((c) => c.reference_date === d);
+          return (
+            <li key={d}>
+              <p className="text-xs font-medium tabular-nums text-neutral-700">{fr(d)}</p>
+              <ul className="mt-0.5 space-y-0.5">
+                {du.map((c) => (
+                  <li key={c.id} className="flex items-center gap-2 text-[11px]">
+                    <span className="w-20 shrink-0 text-neutral-500">
+                      {c.publisher.length > 20 ? `${c.publisher.slice(0, 19)}…` : c.publisher}
+                    </span>
+                    <span
+                      aria-hidden
+                      className="h-2 shrink-0 rounded-full bg-neutral-400"
+                      style={{ width: `${c.figure ? Math.max(3, Math.round((c.figure / max) * 130)) : 3}px` }}
+                    />
+                    <span className="tabular-nums text-neutral-800">
+                      {c.figure ?? "—"}
+                    </span>
+                    <span className="truncate text-neutral-500">{c.figure_text}</span>
+                  </li>
+                ))}
+              </ul>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
 
 export default function ComparaisonPage() {
   const counts = listExternalCounts();
@@ -34,6 +85,8 @@ export default function ComparaisonPage() {
         le droit de désigner un « vrai chiffre » — il affiche ce que chaque
         acteur a compté, et sur quelle base.
       </p>
+
+      <SectionEvolution counts={counts} />
 
       <section className="mt-6 rounded-lg border-2 border-neutral-900 p-4">
         <p className="text-xs uppercase tracking-wide text-neutral-500">
