@@ -158,3 +158,7 @@ L'identifiant d'un établissement est son **UAI**, jamais son nom.
   points maximum sont chargés.
 - La base est un fichier SQLite. Le passage à Postgres/Supabase ne touche que
   `lib/db/index.ts`, le SQL restant identique.
+
+## Licence
+
+Distribué sous la licence MIT. Voir le fichier [LICENSE](LICENSE).
