@@ -7,6 +7,15 @@ Ce dépôt n'affirme pas connaître « la vraie mobilisation ». Il répond à u
 autre question : **qu'est-ce qui est documenté publiquement, où, quand, par
 quelle source, et avec quel niveau de confiance ?**
 
+## Données sensibles
+
+Les fichiers `data/*.json` contiennent des extraits d'articles de presse sur des
+faits touchant des mineurs (blocages lycéens, incidents violents). Par
+précaution, ces extraits sont volontairement retirés du dépôt : seul le champ
+`text` est remplacé par un marqueur, les URL et métadonnées (titre, éditeur,
+dates, établissement) sont conservées pour l'auditabilité. Les articles
+originaux restent consultables via les URL référencées.
+
 ## Démarrage
 
 ```bash
